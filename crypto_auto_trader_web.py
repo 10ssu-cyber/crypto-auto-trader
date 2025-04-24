@@ -24,10 +24,11 @@ for b in balances:
     symbol = b.get('currency')
     if symbol and symbol != 'KRW':
         ticker = f"KRW-{symbol}"
-        if ticker in states and float(b.get('balance', 0)) > 0:
+        if ticker not in states:
+            states[ticker] = {"holding": False, "buy_price": 0, "log": [], "profit": 0.0, "history": []}
+        if float(b.get('balance', 0)) > 0:
             states[ticker]['holding'] = True
             states[ticker]['buy_price'] = float(b.get('avg_buy_price', 0))
-
 
 def get_indicators(ticker):
     df = pyupbit.get_ohlcv(ticker, interval="minute1", count=100)
@@ -58,7 +59,6 @@ def get_indicators(ticker):
     df['obv'] = (np.sign(df['close'].diff()) * df['volume']).fillna(0).cumsum()
     return df
 
-
 def should_buy(df):
     latest = df.iloc[-1]
     prev = df.iloc[-2]
@@ -71,7 +71,6 @@ def should_buy(df):
         latest['ma20'] > latest['ma60']
     )
 
-
 def should_sell(df, buy_price):
     latest = df.iloc[-1]
     profit_ratio = (latest['close'] - buy_price) / buy_price
@@ -81,7 +80,6 @@ def should_sell(df, buy_price):
         latest['macd'] < latest['signal'] or
         latest['rsi'] > 55 and latest['macd'] < latest['signal']
     )
-
 
 def trade_bot():
     while True:
@@ -95,10 +93,9 @@ def trade_bot():
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 current_price = pyupbit.get_current_price(ticker)
                 if current_price:
-                    if len(states[ticker]['history']) < 5:
-                        states[ticker]['history'].extend([current_price] * 5)
-                    else:
-                        states[ticker]['history'].append(current_price)
+                    states[ticker]['history'].append(current_price)
+                    if len(states[ticker]['history']) > 60:
+                        states[ticker]['history'] = states[ticker]['history'][-60:]
 
                 if not states[ticker]['holding'] and should_buy(df):
                     order = upbit.buy_market_order(ticker, 10000)
@@ -120,7 +117,6 @@ def trade_bot():
             except Exception as e:
                 states[ticker]['log'].append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ 오류: {ticker} - {str(e)}")
         time.sleep(60)
-
 
 @app.route("/")
 def index():
@@ -175,12 +171,10 @@ def index():
     </script>
     </body></html>""", ticker=ticker, state=state, tickers=tickers, states=states)
 
-
 @app.route("/price-data")
 def price_data():
     ticker = request.args.get("ticker", "KRW-BTC")
     return jsonify(states[ticker]['history'][-60:])
-
 
 if __name__ == "__main__":
     threading.Thread(target=trade_bot, daemon=True).start()
