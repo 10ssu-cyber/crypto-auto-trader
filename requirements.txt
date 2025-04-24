@@ -1,0 +1,4 @@
+flask
+pyupbit
+pandas
+numpy

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: crypto-auto-trader
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: UPBIT_ACCESS_KEY
+        value: your-access-key
+      - key: UPBIT_SECRET_KEY
+        value: your-secret-key
