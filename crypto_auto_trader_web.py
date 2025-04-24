@@ -95,7 +95,10 @@ def trade_bot():
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 current_price = pyupbit.get_current_price(ticker)
                 if current_price:
-                    states[ticker]['history'].append(current_price)
+                    if len(states[ticker]['history']) < 5:
+                        states[ticker]['history'].extend([current_price] * 5)
+                    else:
+                        states[ticker]['history'].append(current_price)
 
                 if not states[ticker]['holding'] and should_buy(df):
                     order = upbit.buy_market_order(ticker, 10000)
@@ -156,7 +159,17 @@ def index():
         new Chart(document.getElementById("priceChart"), {
           type: "line",
           data: { labels, datasets: [{ data: data, borderColor: "#50fa7b", tension: 0.2 }] },
-          options: { scales: { x: { ticks: { color: "#999" } }, y: { ticks: { color: "#999" } } } }
+          options: {
+            scales: {
+              x: { ticks: { color: "#999" } },
+              y: {
+                ticks: { color: "#999" },
+                beginAtZero: false,
+                suggestedMin: Math.min(...data) * 0.98,
+                suggestedMax: Math.max(...data) * 1.02
+              }
+            }
+          }
         });
       });
     </script>
