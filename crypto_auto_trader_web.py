@@ -174,3 +174,4 @@ if __name__ == "__main__":
     threading.Thread(target=trade_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=PORT)
+
