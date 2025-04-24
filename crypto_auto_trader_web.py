@@ -66,6 +66,7 @@ def should_buy(df):
     latest = df.iloc[-1]
     prev = df.iloc[-2]
     return (
+        latest['rsi'] < 40 and  # 완화: 35 → 40
         latest['rsi'] < 35 and
         latest['macd'] > latest['signal'] and
         latest['close'] < latest['lower'] and
