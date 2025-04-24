@@ -96,6 +96,8 @@ def trade_bot():
                     states[ticker]['history'].append(current_price)
                     if len(states[ticker]['history']) > 60:
                         states[ticker]['history'] = states[ticker]['history'][-60:]
+                    elif len(states[ticker]['history']) < 5:
+                        states[ticker]['history'].extend([current_price] * (5 - len(states[ticker]['history'])))
 
                 if not states[ticker]['holding'] and should_buy(df):
                     order = upbit.buy_market_order(ticker, 10000)
@@ -154,7 +156,7 @@ def index():
         const labels = Array.from({length: data.length}, (_, i) => i + 1);
         new Chart(document.getElementById("priceChart"), {
           type: "line",
-          data: { labels, datasets: [{ label: '{{ ticker }}', data: data, borderColor: "#50fa7b", tension: 0.2 }] },
+          data: { labels, datasets: [{ label: '{{ ticker | safe }}', data: data, borderColor: "#50fa7b", tension: 0.2 }] },
           options: {
             scales: {
               x: { ticks: { color: "#999" } },
@@ -178,5 +180,5 @@ def price_data():
 
 if __name__ == "__main__":
     threading.Thread(target=trade_bot, daemon=True).start()
-    PORT = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=PORT)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
