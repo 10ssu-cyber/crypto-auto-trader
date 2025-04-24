@@ -21,13 +21,14 @@ states = {
 # 실제 보유 종목 초기화
 balances = upbit.get_balances()
 for b in balances:
-    symbol = b['currency']
-    if symbol == 'KRW':
-        continue
-    ticker = f"KRW-{symbol}"
-    if ticker in states and float(b['balance']) > 0:
-        states[ticker]['holding'] = True
-        states[ticker]['buy_price'] = float(b['avg_buy_price'])
+    if isinstance(b, dict) and 'currency' in b:
+        symbol = b['currency']
+        if symbol == 'KRW':
+            continue
+        ticker = f"KRW-{symbol}"
+        if ticker in states and float(b['balance']) > 0:
+            states[ticker]['holding'] = True
+            states[ticker]['buy_price'] = float(b['avg_buy_price'])
 
 def get_indicators(ticker):
     df = pyupbit.get_ohlcv(ticker, interval="minute5", count=100)
@@ -74,8 +75,6 @@ def should_sell(df, buy_price):
     latest = df.iloc[-1]
     profit_ratio = (latest['close'] - buy_price) / buy_price
 
-    # ✅ 반등 중인 흐름을 확인 후 여유 있게 매도
-    # RSI가 50 이상이고 MACD가 하향 돌파할 때만 매도
     return (
         profit_ratio <= -0.02 or
         latest['macd'] < latest['signal'] or
