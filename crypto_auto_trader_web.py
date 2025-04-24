@@ -21,14 +21,12 @@ states = {
 
 balances = upbit.get_balances()
 for b in balances:
-    if isinstance(b, dict) and 'currency' in b:
-        symbol = b['currency']
-        if symbol == 'KRW':
-            continue
+    symbol = b.get('currency')
+    if symbol and symbol != 'KRW':
         ticker = f"KRW-{symbol}"
-        if ticker in states and float(b['balance']) > 0:
+        if ticker in states and float(b.get('balance', 0)) > 0:
             states[ticker]['holding'] = True
-            states[ticker]['buy_price'] = float(b['avg_buy_price'])
+            states[ticker]['buy_price'] = float(b.get('avg_buy_price', 0))
 
 
 def get_indicators(ticker):
@@ -96,7 +94,8 @@ def trade_bot():
 
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 current_price = pyupbit.get_current_price(ticker)
-                states[ticker]['history'].append(current_price)
+                if current_price:
+                    states[ticker]['history'].append(current_price)
 
                 if not states[ticker]['holding'] and should_buy(df):
                     order = upbit.buy_market_order(ticker, 10000)
@@ -174,4 +173,3 @@ if __name__ == "__main__":
     threading.Thread(target=trade_bot, daemon=True).start()
     PORT = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=PORT)
-
