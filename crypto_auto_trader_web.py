@@ -158,7 +158,7 @@ def index():
         const labels = Array.from({length: data.length}, (_, i) => i + 1);
         new Chart(document.getElementById("priceChart"), {
           type: "line",
-          data: { labels, datasets: [{ data: data, borderColor: "#50fa7b", tension: 0.2 }] },
+          data: { labels, datasets: [{ label: '{{ ticker }}', data: data, borderColor: "#50fa7b", tension: 0.2 }] },
           options: {
             scales: {
               x: { ticks: { color: "#999" } },
