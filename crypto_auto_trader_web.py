@@ -16,7 +16,7 @@ upbit = pyupbit.Upbit(access, secret)
 
 tickers = pyupbit.get_tickers(fiat="KRW")
 states = {
-    t: {"holding": False, "buy_price": 0, "log": [], "profit": 0.0, "history": []} for t in tickers
+    t: {"holding": False, "buy_price": 0, "log": [], "profit": 0.0, "history": [], "target": 0.0, "cut": 0.0} for t in tickers
 }
 
 balances = upbit.get_balances()
@@ -25,10 +25,13 @@ for b in balances:
     if symbol and symbol != 'KRW':
         ticker = f"KRW-{symbol}"
         if ticker not in states:
-            states[ticker] = {"holding": False, "buy_price": 0, "log": [], "profit": 0.0, "history": []}
+            states[ticker] = {"holding": False, "buy_price": 0, "log": [], "profit": 0.0, "history": [], "target": 0.0, "cut": 0.0}
         if float(b.get('balance', 0)) > 0:
+            avg_price = float(b.get('avg_buy_price', 0))
             states[ticker]['holding'] = True
-            states[ticker]['buy_price'] = float(b.get('avg_buy_price', 0))
+            states[ticker]['buy_price'] = avg_price
+            states[ticker]['target'] = avg_price * 1.0125
+            states[ticker]['cut'] = avg_price * 0.975
 
 def get_indicators(ticker):
     df = pyupbit.get_ohlcv(ticker, interval="minute1", count=100)
@@ -71,14 +74,11 @@ def should_buy(df):
         latest['ma20'] > latest['ma60']
     )
 
-def should_sell(df, buy_price):
-    latest = df.iloc[-1]
-    profit_ratio = (latest['close'] - buy_price) / buy_price
-
+def should_sell(df, buy_price, current_price):
+    profit_ratio = (current_price - buy_price) / buy_price
     return (
-        profit_ratio <= -0.02 or
-        latest['macd'] < latest['signal'] or
-        latest['rsi'] > 55 and latest['macd'] < latest['signal']
+        profit_ratio <= -0.025 or
+        profit_ratio >= 0.0125
     )
 
 def trade_bot():
@@ -104,9 +104,11 @@ def trade_bot():
                     print(f"[매수 요청] {ticker} - {current_price}")
                     states[ticker]['holding'] = True
                     states[ticker]['buy_price'] = current_price
+                    states[ticker]['target'] = current_price * 1.0125
+                    states[ticker]['cut'] = current_price * 0.975
                     states[ticker]['log'].append(f"[{now}] ✅ 매수: {ticker} @ {current_price}")
 
-                elif states[ticker]['holding'] and should_sell(df, states[ticker]['buy_price']):
+                elif states[ticker]['holding'] and should_sell(df, states[ticker]['buy_price'], current_price):
                     balance = upbit.get_balance(ticker)
                     if balance > 0:
                         order = upbit.sell_market_order(ticker, balance)
@@ -115,6 +117,8 @@ def trade_bot():
                         states[ticker]['profit'] += profit
                         states[ticker]['holding'] = False
                         states[ticker]['buy_price'] = 0
+                        states[ticker]['target'] = 0
+                        states[ticker]['cut'] = 0
                         states[ticker]['log'].append(f"[{now}] ✅ 매도: {ticker} @ {current_price} | 수익률: {profit:.2f}%")
             except Exception as e:
                 states[ticker]['log'].append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ 오류: {ticker} - {str(e)}")
@@ -131,6 +135,8 @@ def index():
     <h1 style="color:#50fa7b">📈 KRW 코인 자동매매 대시보드</h1>
     <div style="margin-bottom:20px">보유 상태: <strong>{{ '보유 중' if state.holding else '미보유' }}</strong><br>
     최근 매수 가격: {{ state.buy_price }}<br>
+    목표가: {{ '%.4f' % state.target if state.target else 'N/A' }}<br>
+    손절가: {{ '%.4f' % state.cut if state.cut else 'N/A' }}<br>
     마지막 로그: {{ state.log[-1] if state.log else '없음' }}</div>
     <div style="margin-bottom:10px"><strong>수익률: {{ '%.2f' % (state.profit if state.profit else 0.0) }}%</strong></div>
     <div style='margin: 40px 0;'>
