@@ -77,14 +77,6 @@ def should_buy(df):
         latest['obv'] > prev['obv'] and
         latest['close'] < latest['ma20']
     )
-        latest['rsi'] < 40 and  # 완화: 35 → 40
-        latest['rsi'] < 35 and
-        latest['macd'] > latest['signal'] and
-        latest['close'] < latest['lower'] and
-        latest['obv'] > prev['obv'] and
-        latest['close'] < latest['ma20'] * 0.985 and
-        latest['ma20'] > latest['ma60']
-    )
 
 def should_sell(df, buy_price, current_price):
     profit_ratio = (current_price - buy_price) / buy_price
@@ -98,7 +90,6 @@ def trade_bot():
         for ticker in tickers:
             try:
                 df = get_indicators(ticker)
-                print(f"[체크] {ticker} 데이터 확인 중")
                 if df is None:
                     continue
 
@@ -112,9 +103,7 @@ def trade_bot():
                         states[ticker]['history'].extend([current_price] * (5 - len(states[ticker]['history'])))
 
                 if not states[ticker]['holding'] and should_buy(df):
-                    print(f"[BUY 조건 만족] {ticker} @ {current_price}")
                     order = upbit.buy_market_order(ticker, 10000)
-                    print(f"[주문 응답] {order}")
                     print(f"[매수 요청] {ticker} - {current_price}")
                     states[ticker]['holding'] = True
                     states[ticker]['buy_price'] = current_price
@@ -125,9 +114,7 @@ def trade_bot():
                 elif states[ticker]['holding'] and should_sell(df, states[ticker]['buy_price'], current_price):
                     balance = upbit.get_balance(ticker)
                     if balance > 0:
-                        print(f"[SELL 조건 만족] {ticker} @ {current_price}")
                         order = upbit.sell_market_order(ticker, balance)
-                        print(f"[주문 응답] {order}")
                         print(f"[매도 요청] {ticker} - {current_price}")
                         profit = (current_price - states[ticker]['buy_price']) / states[ticker]['buy_price'] * 100
                         states[ticker]['profit'] += profit
